@@ -16,7 +16,9 @@ func _process(delta):
 		elapsed_time += delta
 	if has_node("UI/CoinLabel"):
 		$UI/CoinLabel.text = "Coins: %d/%d   Time: %.1fs" % [Game.coins, Game.total_coins, elapsed_time]
-
+	if Input.is_key_pressed(KEY_R) and Input.is_key_pressed(KEY_SHIFT):
+		get_tree().reload_current_scene()
+		
 func _physics_process(_delta):
 	var t = Time.get_ticks_msec() / 1000.0
 	for body in moving_platforms:
@@ -173,7 +175,7 @@ func add_goal(pos):
 				reload_level()
 			else:
 				timer_running = false
-				$UI/WinLabel.text = "You beat both levels! Time: %.1fs" % elapsed_time
+				$UI/WinLabel.text = "You escaped! Time: %.1fs\nPress SHIFT+R to play again" % elapsed_time
 	)
 	add_child(area)
 
