@@ -1,18 +1,22 @@
 extends Node2D
+
 var moving_platforms = []
 var current_level = 1
+var elapsed_time = 0.0
+var timer_running = true
+
 func _ready():
 	RenderingServer.set_default_clear_color(Color(0.08, 0.08, 0.14))
 	build_background()
 	build_level()
 	build_ui()
-	build_level()
-	build_ui()
 
-func _process(_delta):
+func _process(delta):
+	if timer_running:
+		elapsed_time += delta
 	if has_node("UI/CoinLabel"):
-		$UI/CoinLabel.text = "Coins: %d/%d" % [Game.coins, Game.total_coins]
-		
+		$UI/CoinLabel.text = "Coins: %d/%d   Time: %.1fs" % [Game.coins, Game.total_coins, elapsed_time]
+
 func _physics_process(_delta):
 	var t = Time.get_ticks_msec() / 1000.0
 	for body in moving_platforms:
@@ -21,7 +25,7 @@ func _physics_process(_delta):
 		var dist = body.get_meta("move_dist")
 		var speed = body.get_meta("move_speed")
 		body.position = start + dir * sin(t * speed) * dist
-		
+
 func build_level():
 	if current_level == 1:
 		build_level_1()
@@ -100,7 +104,6 @@ func add_platform(x, y, w, h, move_dir = Vector2.ZERO, move_dist = 0, move_speed
 	add_child(body)
 	if move_dir != Vector2.ZERO:
 		moving_platforms.append(body)
-	
 
 func add_coin(pos):
 	var area = Area2D.new()
@@ -122,7 +125,6 @@ func add_coin(pos):
 			area.queue_free()
 	)
 	add_child(area)
-	add_child(area)
 
 func add_spike(pos):
 	var area = Area2D.new()
@@ -139,6 +141,7 @@ func add_spike(pos):
 	area.add_child(shape)
 	area.body_entered.connect(func(body):
 		if body.name == "CharacterBody2D":
+			spawn_burst(body.global_position, Color(0.9, 0.1, 0.1))
 			Game.coins = 0
 			get_tree().reload_current_scene()
 	)
@@ -159,21 +162,29 @@ func add_goal(pos):
 	area.add_child(shape)
 	area.body_entered.connect(func(body):
 		if body.name == "CharacterBody2D":
-			if current_level == 1:
+			if Game.coins < Game.total_coins:
+				$UI/WinLabel.text = "Need all coins! (%d/%d)" % [Game.coins, Game.total_coins]
+				get_tree().create_timer(1.2).timeout.connect(func():
+					if is_instance_valid(self):
+						$UI/WinLabel.text = ""
+				)
+			elif current_level == 1:
 				current_level = 2
 				reload_level()
 			else:
-				$UI/WinLabel.text = "You beat both levels! Final coins: %d" % Game.coins
+				timer_running = false
+				$UI/WinLabel.text = "You beat both levels! Time: %.1fs" % elapsed_time
 	)
 	add_child(area)
 
 func reload_level():
+	Game.coins = 0
 	for child in get_children():
 		if child.name != "Player" and child.name != "UI":
 			child.queue_free()
 	moving_platforms.clear()
 	build_background()
-	build_level()	
+	build_level()
 
 func build_ui():
 	var ui = CanvasLayer.new()
@@ -190,11 +201,11 @@ func build_ui():
 	win_label.position = Vector2(400, 300)
 	win_label.add_theme_font_size_override("font_size", 32)
 	ui.add_child(win_label)
-	
+
 func build_background():
 	var parallax = ParallaxBackground.new()
 	add_child(parallax)
-	move_child(parallax, 0) # draw first, behind everything
+	move_child(parallax, 0)
 
 	var layer1 = ParallaxLayer.new()
 	layer1.motion_scale = Vector2(0.3, 0.3)
@@ -215,7 +226,7 @@ func build_background():
 		r.position = Vector2(i * 350 + 150, -100)
 		r.color = Color(0.22, 0.18, 0.35)
 		layer2.add_child(r)
-		
+
 func spawn_burst(pos, color):
 	var p = CPUParticles2D.new()
 	p.position = pos
