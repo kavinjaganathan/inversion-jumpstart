@@ -6,7 +6,7 @@ var elapsed_time = 0.0
 var timer_running = true
 var lives = 3
 var max_lives = 3
-
+var coins_list = []
 
 func _ready():
 	RenderingServer.set_default_clear_color(Color(0.08, 0.08, 0.14))
@@ -19,10 +19,19 @@ func _process(delta):
 		elapsed_time += delta
 	if has_node("UI/CoinLabel"):
 		$UI/CoinLabel.text = "Coins: %d/%d   Time: %.1fs" % [Game.coins, Game.total_coins, elapsed_time]
+	if has_node("UI/LifeLabel"):
+		$UI/LifeLabel.text = "Lives: " + "❤️".repeat(Game.lives)
+
 	if Input.is_key_pressed(KEY_R) and Input.is_key_pressed(KEY_SHIFT):
 		get_tree().reload_current_scene()
-	if $Player.global_position.y > 1000 or $Player.global_position.y < -1000:
-		lose_life()
+
+	if has_node("Player"):
+		if $Player.global_position.y > 1000 or $Player.global_position.y < -1000:
+			lose_life()
+	for c in coins_list:
+		if is_instance_valid(c):
+			var rect = c.get_meta("spin_node")
+			rect.rotation += 3 * delta
 		
 func _physics_process(_delta):
 	var t = Time.get_ticks_msec() / 1000.0
@@ -119,10 +128,23 @@ func add_platform(x, y, w, h, move_dir = Vector2.ZERO, move_dist = 0, move_speed
 		body.set_meta("move_dir", move_dir)
 		body.set_meta("move_dist", move_dist)
 		body.set_meta("move_speed", move_speed)
-	var rect = ColorRect.new()
-	rect.size = Vector2(w, h)
-	rect.color = Color(0.5, 0.5, 0.5)
-	body.add_child(rect)
+
+	var panel = Panel.new()
+	panel.size = Vector2(w, h)
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.35, 0.35, 0.45)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	panel.add_theme_stylebox_override("panel", style)
+	body.add_child(panel)
+
+	var highlight = ColorRect.new()
+	highlight.size = Vector2(w, 6)
+	highlight.color = Color(0.6, 0.6, 0.8)
+	body.add_child(highlight)
+
 	var shape = CollisionShape2D.new()
 	var rs = RectangleShape2D.new()
 	rs.size = Vector2(w, h)
@@ -138,14 +160,15 @@ func add_coin(pos):
 	area.position = pos
 	var rect = ColorRect.new()
 	rect.size = Vector2(20, 20)
+	rect.position = Vector2(-10, -10)
 	rect.color = Color(1, 0.9, 0.2)
 	area.add_child(rect)
 	var shape = CollisionShape2D.new()
 	var cs = RectangleShape2D.new()
 	cs.size = Vector2(20, 20)
 	shape.shape = cs
-	shape.position = Vector2(10, 10)
 	area.add_child(shape)
+	area.set_meta("spin_node", rect)
 	area.body_entered.connect(func(body):
 		if body.name == "CharacterBody2D":
 			Game.coins += 1
@@ -153,6 +176,7 @@ func add_coin(pos):
 			area.queue_free()
 	)
 	add_child(area)
+	coins_list.append(area)
 
 func add_spike(pos):
 	var area = Area2D.new()
