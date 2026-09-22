@@ -3,7 +3,9 @@ extends CharacterBody2D
 const SPEED = 300.0
 const JUMP_VELOCITY = -420.0
 const GRAVITY = 1200.0
-
+const MAX_HOLD_TIME = 0.25
+var jump_held_time = 0.0
+var is_jumping = false
 var gravity_dir = 1
 var was_on_floor = true
 
@@ -20,7 +22,16 @@ func _physics_process(delta):
 	velocity.x = direction * SPEED if direction else move_toward(velocity.x, 0, SPEED)
 
 	if Input.is_action_just_pressed("jump") and is_on_floor():
-		velocity.y = JUMP_VELOCITY * gravity_dir
+		velocity.y = JUMP_VELOCITY * 0.5 * gravity_dir
+		is_jumping = true
+		jump_held_time = 0.0
+
+	if is_jumping and Input.is_action_pressed("jump") and jump_held_time < MAX_HOLD_TIME:
+		velocity.y += JUMP_VELOCITY * 2.5 * gravity_dir * delta
+		jump_held_time += delta
+
+	if Input.is_action_just_released("jump") or jump_held_time >= MAX_HOLD_TIME:
+		is_jumping = false
 
 	move_and_slide()
 	

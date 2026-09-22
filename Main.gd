@@ -4,6 +4,9 @@ var moving_platforms = []
 var current_level = 1
 var elapsed_time = 0.0
 var timer_running = true
+var lives = 3
+var max_lives = 3
+
 
 func _ready():
 	RenderingServer.set_default_clear_color(Color(0.08, 0.08, 0.14))
@@ -18,6 +21,8 @@ func _process(delta):
 		$UI/CoinLabel.text = "Coins: %d/%d   Time: %.1fs" % [Game.coins, Game.total_coins, elapsed_time]
 	if Input.is_key_pressed(KEY_R) and Input.is_key_pressed(KEY_SHIFT):
 		get_tree().reload_current_scene()
+	if $Player.global_position.y > 1000 or $Player.global_position.y < -1000:
+		lose_life()
 		
 func _physics_process(_delta):
 	var t = Time.get_ticks_msec() / 1000.0
@@ -31,8 +36,10 @@ func _physics_process(_delta):
 func build_level():
 	if current_level == 1:
 		build_level_1()
-	else:
+	elif current_level == 2:
 		build_level_2()
+	else:
+		build_level_3()
 
 func build_level_1():
 	var platforms = [
@@ -83,6 +90,25 @@ func build_level_2():
 		add_spike(s)
 
 	add_goal(Vector2(1750, 220))
+	$Player.position = Vector2(50, 350)
+
+func build_level_3():
+	add_platform(0, 400, 300, 40)
+	add_platform(500, -300, 300, 40)   # ceiling only — must flip to reach
+	add_platform(1000, 400, 300, 40)   # back to floor
+	add_platform(1500, -300, 300, 40)  # ceiling again
+	add_platform(2000, 400, 400, 40)   # final floor stretch
+	add_platform(750, 50, 150, 30, Vector2(0, 1), 200, 1.0) # vertical mover in the void gap
+
+	var coins = [Vector2(650, -340), Vector2(1150, 360), Vector2(1650, -340), Vector2(2100, 360)]
+	for c in coins:
+		add_coin(c)
+
+	var spikes = [Vector2(300, 400), Vector2(1300, -300)]
+	for s in spikes:
+		add_spike(s)
+
+	add_goal(Vector2(2300, 320))
 	$Player.position = Vector2(50, 350)
 
 func add_platform(x, y, w, h, move_dir = Vector2.ZERO, move_dist = 0, move_speed = 1.0):
@@ -170,8 +196,8 @@ func add_goal(pos):
 					if is_instance_valid(self):
 						$UI/WinLabel.text = ""
 				)
-			elif current_level == 1:
-				current_level = 2
+			elif current_level < 3:
+				current_level += 1
 				reload_level()
 			else:
 				timer_running = false
@@ -197,6 +223,13 @@ func build_ui():
 	coin_label.name = "CoinLabel"
 	coin_label.position = Vector2(20, 20)
 	ui.add_child(coin_label)
+	if has_node("UI/LifeLabel"):
+		$UI/LifeLabel.text = "Lives: " + "❤️".repeat(Game.lives)
+	
+	var life_label = Label.new()
+	life_label.name = "LifeLabel"
+	life_label.position = Vector2(20, 50)
+	ui.add_child(life_label)
 
 	var win_label = Label.new()
 	win_label.name = "WinLabel"
@@ -251,3 +284,11 @@ func spawn_burst(pos, color):
 		if is_instance_valid(p):
 			p.queue_free()
 	)
+	
+func lose_life():
+	Game.lives -= 1
+	if Game.lives <= 0:
+		Game.lives = Game.max_lives
+		Game.coins = 0
+		current_level = 1
+	get_tree().reload_current_scene()
